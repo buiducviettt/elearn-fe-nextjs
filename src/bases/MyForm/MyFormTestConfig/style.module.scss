@@ -1,0 +1,26 @@
+.modalContent{
+    max-height: 80vh;
+    overflow: hidden auto;
+}
+.random-quest{
+    .item-random-quest{
+        @media screen and (max-width: 1200px){
+            grid-column: span 2;
+        }
+        @media screen and (max-width: 620px){
+            grid-column: span 3;
+        }
+    }
+}
+
+.psticky{
+    position: sticky;
+    top: 0;
+  }
+  
+
+  :global( .audiosec) {
+    .min-h-\[300px\] {
+      min-height: 200px !important;
+    }
+  }

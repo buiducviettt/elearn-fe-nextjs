@@ -1,0 +1,59 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+
+  :global {
+    .ql-toolbar {
+      border-radius: 8px; // rounded-base
+    }
+
+    .ql-container {
+      height: var(--height);
+      border-radius: 8px; // rounded-base
+      border: none;
+      outline: 1px solid #d9d9d9;
+      transition: outline-color 0.2s;
+    }
+    .ql-container:hover,
+    .ql-container:focus-within {
+      outline-color: #4096ff; // primary
+    }
+
+    .ql-editor {
+      font-size: 14px;
+      line-height: 1.5715;
+    }
+
+    // Style cho vùng nhận giá trị (filling input)
+    .filling-input {
+      display: inline-block;
+      min-width: 60px;
+      height: 24px;
+      padding: 2px 8px;
+      margin: 0 4px;
+      background-color: #f0f0f0;
+      border: 1px dashed #d9d9d9;
+      border-radius: 4px;
+      text-align: center;
+      cursor: pointer;
+
+      &:hover {
+        border-color: #1890ff;
+        background-color: #e6f7ff;
+      }
+
+      &.dragging-over {
+        border-style: solid;
+        border-color: #1890ff;
+        background-color: #e6f7ff;
+      }
+    }
+  }
+}
+
+.addButton {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 1;
+}

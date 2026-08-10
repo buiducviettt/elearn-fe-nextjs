@@ -1,0 +1,10 @@
+.root {
+:global(.ant-checkbox .ant-checkbox-inner) {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+:global(.ant-checkbox .ant-checkbox-inner:after) {
+  height: 12px;
+}
+}

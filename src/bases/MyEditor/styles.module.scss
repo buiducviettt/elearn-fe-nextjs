@@ -1,0 +1,40 @@
+
+.root {
+  $height: var(--height, 400px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; // gap-3 ~ 12px
+  width: 100%;
+
+// Đưa :global ra ngoài .root
+:global(.ql-toolbar) {
+  border-radius: 8px; // rounded-base
+}
+:global(.ck-editor__main) {
+    min-height: 0 !important;
+    height: unset !important;
+}
+:global(.ck-content) {
+    min-height: 0 !important;
+    height: unset !important;
+}
+.ck-editor__main {
+    min-height: 300px !important; /* hoặc height: 300px !important; */
+    /* hoặc dùng biến height truyền vào */
+}
+.ck-content {
+    height: 400px !important;
+    overflow: hidden auto;
+  }
+:global(.ql-container) {
+  height: var(--height, 400px);
+  border-radius: 8px; // rounded-base
+  border: none;
+  outline: 1px solid #d9d9d9;
+  transition: outline-color 0.2s;
+}
+:global(.ql-container:hover),
+:global(.ql-container:focus-within) {
+  outline-color: #4096ff; // primary
+}
+}

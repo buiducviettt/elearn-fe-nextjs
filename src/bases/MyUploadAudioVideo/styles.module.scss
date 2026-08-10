@@ -1,0 +1,78 @@
+.root {
+    position: relative;
+    // @apply bg-white border border-gray-400;
+}
+
+.root :global(.ant-upload-btn) {
+  min-height: unset !important;
+}
+.root :global(.ant-upload-drag-container) {
+  height: var(--drag-container-height, 180px);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.root :global(.ant-upload-list) {
+  display: none;
+}
+
+.modal {
+}
+
+.root :global(.ant-modal-content) {
+  height: 100vh;
+  padding: 20px;
+}
+.root :global(.ant-spin) {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 9999;
+}
+
+.listimga {
+  max-height: 80vh;
+  min-height: 80vh;
+  margin: 0 -.2rem .4rem;
+}
+.inner {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50%;
+    height: 50%;
+    display: block;
+    object-fit: contain !important;
+  }
+  img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover !important;
+  }
+  .tagimg {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    width: 100%;
+  }
+}
