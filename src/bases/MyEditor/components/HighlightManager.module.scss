@@ -46,24 +46,230 @@
 }
 
 /* ── Input box (phase = "input") ────────────────────────────────────────── */
-.inputBox {
-    background: #ffffff;
+
+
+
+.btnClose {
+    flex-shrink: 0;
+    width: 26px;
+    height: 32px;
+    background: none;
+    border: none;
+    padding: 0 2px;
+    font-size: 16px;
+    line-height: 1;
+    color: #94a3b8;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: color 0.12s, background-color 0.12s;
+
+    &:hover {
+        color: #1e293b;
+        background-color: #f1f5f9;
+    }
+}
+
+
+/* ── Button row ─────────────────────────────────────────────────────────── */
+
+.btnSave {
+    flex: 1;
+    height: 32px;
+    background-color: #16a34a;
+    border: 1px solid #16a34a;
+    border-radius: 5px;
+    padding: 7px 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.12s;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: #15803d;
+    }
+
+    &:disabled {
+        background-color: #bbf7d0;
+        color: #fff;
+        cursor: not-allowed;
+    }
+}
+
+
+
+
+.timeGroup {
+    display: flex;
+    align-items: stretch;
+    height: 32px;
+    width: fit-content;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    transition:
+        border-color 0.15s,
+        box-shadow 0.15s;
+
+    &:focus-within {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+}
+
+
+.timeInput {
+    width: 74px;
+    border: none;
+    padding: 6px 8px;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    text-align: center;
+    outline: none;
+    background: #fff;
+
+    &::placeholder {
+        color: #94a3b8;
+    }
+}
+
+
+
+.timeIconBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    background-color: #f8fafc;
+    color: #475569;
+    border: none;
+    border-left: 1px solid #e2e8f0;
+    font-size: 13px;
+    cursor: pointer;
+    transition:
+        background-color 0.12s,
+        color 0.12s;
+
+    &:hover:not(:disabled) {
+        background-color: #e2e8f0;
+        color: #1e293b;
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+}
+
+
+
+.btnIconDanger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 32px;
+    height: 32px;
+    background-color: #fff;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    transition:
+        background-color 0.12s,
+        border-color 0.12s,
+        color 0.12s;
+
+    &:hover {
+        background-color: #dc2626;
+        border-color: #dc2626;
+        color: #fff;
+    }
+}
+
+
+.confirmRow {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    background: #fef2f2;
+}
+
+.confirmText {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: #7f1d1d;
+}
+
+.confirmBtns {
+    display: flex;
+    gap: 6px;
+
+    button {
+        flex: 1;
+        border-radius: 5px;
+        padding: 5px 4px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.12s;
+    }
+}
+
+.btnConfirmDanger {
+    background-color: #dc2626;
+    border: 1px solid #dc2626;
+    color: #fff;
+
+    &:hover {
+        background-color: #b91c1c;
+    }
+}
+
+.btnConfirmCancel {
+    background-color: #fff;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 10px 10px 8px;
+    color: #475569;
+
+    &:hover {
+        background-color: #f1f5f9;
+    }
+}
+
+
+
+
+
+
+
+.timeGroupError {
+    border-color: #dc2626;
+    background: #fef2f2;
+}
+
+.inputBox {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 8px;
     min-width: 320px;
     max-width: 320px;
+    padding: 10px 10px 8px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 
-    /* arrow pointing upward */
     &::before {
         content: "";
         position: absolute;
         top: -7px;
-        left: 14px;
+        left: var(--arrow-x, 14px);
         border-width: 0 6px 7px 6px;
         border-style: solid;
         border-color: transparent transparent #e2e8f0 transparent;
@@ -73,7 +279,7 @@
         content: "";
         position: absolute;
         top: -6px;
-        left: 15px;
+        left: calc(var(--arrow-x, 14px) + 1px);
         border-width: 0 5px 6px 5px;
         border-style: solid;
         border-color: transparent transparent #fff transparent;
@@ -96,93 +302,50 @@
     letter-spacing: 0.04em;
 }
 
-.btnClose {
-    flex-shrink: 0;
+.idInput {
+    width: 100%;
+}
+
+.timeBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.timeLabel {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.timeErrorText {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #dc2626;
+}
+
+.actions {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.linkDanger {
+    align-self: flex-start;
     background: none;
     border: none;
-    padding: 0 2px;
-    font-size: 16px;
-    line-height: 1;
+    padding: 0;
+    font-size: 11px;
     color: #94a3b8;
+    text-decoration: underline;
+    text-underline-offset: 2px;
     cursor: pointer;
-    border-radius: 3px;
-    transition: color 0.12s, background-color 0.12s;
+    transition: color 0.12s;
 
     &:hover {
-        color: #1e293b;
-        background-color: #f1f5f9;
-    }
-}
-
-.idInput {
-    border: 1px solid #cbd5e1;
-    border-radius: 5px;
-    padding: 6px 9px;
-    font-size: 13px;
-    outline: none;
-    width: 100%;
-    box-sizing: border-box;
-    transition:
-        border-color 0.15s,
-        box-shadow 0.15s;
-
-    &:focus {
-        border-color: #2563eb;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-    }
-
-    &::placeholder {
-        color: #94a3b8;
-    }
-}
-
-/* ── Button row ─────────────────────────────────────────────────────────── */
-.btnGroup {
-    display: flex;
-    gap: 6px;
-
-    button {
-        flex: 1;
-        border: none;
-        border-radius: 5px;
-        padding: 6px 4px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.12s;
-    }
-}
-
-.btnSave {
-    background-color: #16a34a;
-    color: #fff;
-
-    &:hover:not(:disabled) {
-        background-color: #15803d;
-    }
-
-    &:disabled {
-        background-color: #bbf7d0;
-        color: #fff;
-        cursor: not-allowed;
-    }
-}
-
-.btnDelete {
-    background-color: #dc2626;
-    color: #fff;
-
-    &:hover {
-        background-color: #b91c1c;
-    }
-}
-
-.btnDeleteAll {
-    background-color: #7f1d1d;
-    color: #fff;
-    white-space: nowrap;
-
-    &:hover {
-        background-color: #6b1a1a;
+        color: #dc2626;
     }
 }

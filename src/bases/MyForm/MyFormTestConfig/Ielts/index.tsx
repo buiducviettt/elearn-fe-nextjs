@@ -228,6 +228,7 @@ const PartQuestionItem = (props) => {
                                 showAddInput={true}
                                 showHighlight={true}
                                 questions={questions}
+                                audioSrc={structure?.transcript_audio || ""}
                                 onFillingInputUpdate={(
                                     fillingInputs,
                                 ) => {

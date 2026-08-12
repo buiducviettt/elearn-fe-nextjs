@@ -1,5 +1,5 @@
 import numberHandler from "@/utils/numberHandler";
-import { PlusOutlined } from "@ant-design/icons";
+import { ClockCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { Drawer, Spin } from "antd";
 import { motion } from "motion/react";
 import {
@@ -47,6 +47,7 @@ export type TMyEditorProps = {
     questionId?: string | number;
     /** IDs of top-level questions whose items populate the highlight select */
     questions?: (string | number)[];
+    audioSrc?: string;
 };
 
 export type TMyEditorRef = {
@@ -76,11 +77,13 @@ const MyEditor: React.ForwardRefRenderFunction<TMyEditorRef, TMyEditorProps> = (
         showHighlight = false,
         readOnly = false,
         questions,
+        audioSrc,
         ...rest
     } = props;
 
     const editorRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
     const [mathModal, setMathModal] = useState(false);
     const [editorInstance, setEditorInstance] = useState<any>(null);
@@ -218,6 +221,25 @@ const MyEditor: React.ForwardRefRenderFunction<TMyEditorRef, TMyEditorProps> = (
             className={`${wrapperClass} ${styles.wrapper}`}
             style={{ position: "relative", ...style }}
         >
+            {showHighlight && audioSrc && (
+                <div className={styles.highlightAudioBar}>
+                    <span className={styles.highlightAudioLabel}>
+                        Audio transcript
+                    </span>
+                    <audio
+                        ref={audioRef}
+                        src={audioSrc}
+                        controls
+                        preload="metadata"
+                        className={styles.highlightAudioPlayer}
+                    />
+                    <span className={styles.highlightAudioHint}>
+                        Tua tới đoạn cần gắn, bôi đen đoạn đó rồi bấm icon{" "}
+                        <ClockCircleOutlined className={styles.hintIcon} /> để
+                        lấy mốc
+                    </span>
+                </div>
+            )}
             <TinyMCEEditor
                 {...rest}
                 value={finalValue}
@@ -385,6 +407,7 @@ const MyEditor: React.ForwardRefRenderFunction<TMyEditorRef, TMyEditorProps> = (
                     editor={editorInstance}
                     containerRef={containerRef}
                     questions={questions}
+                    audioRef={audioRef}
                 />
             )}
 

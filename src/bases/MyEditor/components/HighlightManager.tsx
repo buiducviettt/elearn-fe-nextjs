@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { Select } from "antd";
+import {
+    CaretRightOutlined,
+    ClockCircleOutlined,
+    DeleteOutlined,
+} from "@ant-design/icons";
 import { questionService } from "@/services/question";
 import { QUESTION_TYPES } from "@/types/enum";
 import styles from "./HighlightManager.module.scss";
@@ -11,6 +16,8 @@ export const HIGHLIGHT_DATA_ATTR = "data-highlight-id";
 /** Unique instance ID – never changes, used to target a specific span */
 export const HIGHLIGHT_UID_ATTR = "data-highlight-uid";
 
+export const HIGHLIGHT_TIME_ATTR = "data-audio-time";
+
 type TPhase = "hidden" | "button" | "input";
 
 type TSelectOption = { label: string; value: string };
@@ -20,22 +27,55 @@ type TProps = {
     containerRef: React.RefObject<HTMLDivElement | null>;
     /** IDs of top-level questions whose question_items populate the select */
     questions?: (string | number)[];
+    audioRef?: React.RefObject<HTMLAudioElement | null>;
+};
+
+export const formatAudioTime = (seconds: number): string => {
+    if (!isFinite(seconds) || seconds < 0) return "";
+    const total = Math.floor(seconds);
+    const mm = Math.floor(total / 60);
+    const ss = total % 60;
+    return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+};
+
+export const parseAudioTime = (input: string): number | null => {
+    const raw = (input || "").trim();
+    if (!raw) return null;
+
+    const parts = raw.split(":");
+    if (parts.length > 3) return null;
+    if (parts.some((p) => p.trim() === "" || !/^\d+(\.\d+)?$/.test(p.trim())))
+        return null;
+
+    const nums = parts.map((p) => Number(p.trim()));
+    const seconds = nums.reduce((acc, n) => acc * 60 + n, 0);
+    return isFinite(seconds) && seconds >= 0 ? seconds : null;
 };
 
 const HighlightManager: React.FC<TProps> = ({
     editor,
     containerRef,
     questions = [],
+    audioRef,
 }) => {
     const [phase, setPhase] = useState<TPhase>("hidden");
-    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [position, setPosition] = useState({ x: 0, y: 0, arrowX: 14 });
     const [inputId, setInputId] = useState("");
+    const [inputTime, setInputTime] = useState("");
+    const [timeError, setTimeError] = useState(false);
     const [editingHighlightId, setEditingHighlightId] = useState<
         string | undefined
     >();
     const [editingUid, setEditingUid] = useState<string | undefined>();
+    const [offscreen, setOffscreen] = useState(false);
+    const [confirmAll, setConfirmAll] = useState(false);
+    const [allCount, setAllCount] = useState(0);
     const bookmarkRef = useRef<any>(null);
     const selectRef = useRef<any>(null);
+    const popupRef = useRef<HTMLDivElement>(null);
+    const anchorRef = useRef<
+        { type: "element"; el: Element } | { type: "range"; range: Range } | null
+    >(null);
 
     // ── Fetch question details to build select options ────────────────
     const questionQueries = useQueries({
@@ -130,6 +170,55 @@ const HighlightManager: React.FC<TProps> = ({
         };
     };
 
+    const getAnchorRect = (): DOMRect | null => {
+        const anchor = anchorRef.current;
+        if (!anchor) return null;
+
+        if (anchor.type === "element") {
+            if (!anchor.el.isConnected) return null;
+            return anchor.el.getBoundingClientRect();
+        }
+
+        let rect: DOMRect = anchor.range.getBoundingClientRect();
+        if (!rect || (rect.width === 0 && rect.height === 0)) {
+            const rects = anchor.range.getClientRects();
+            if (rects.length === 0) return null;
+            rect = rects[rects.length - 1] as DOMRect;
+        }
+        return rect;
+    };
+
+    const syncRef = useRef<() => void>(() => {});
+
+    const syncPositionToAnchor = () => {
+        const rect = getAnchorRect();
+        if (!rect) return;
+
+        const iframeEl = editor?.getContainer()?.querySelector("iframe");
+        if (!iframeEl) return;
+
+        const iframeRect = iframeEl.getBoundingClientRect();
+        const visible =
+            rect.bottom > iframeRect.top && rect.top < iframeRect.bottom;
+        setOffscreen(!visible);
+
+        const pos = getPositionFromRect(rect);
+        if (!pos) return;
+
+        const container = containerRef.current;
+        const barWidth = popupRef.current?.offsetWidth ?? 0;
+        const maxX = Math.max(0, (container?.clientWidth ?? 0) - barWidth - 4);
+        const x = Math.min(Math.max(0, pos.x), maxX);
+        const arrowX = Math.min(
+            Math.max(8, pos.x - x + 8),
+            Math.max(8, barWidth - 16),
+        );
+
+        setPosition({ x, y: pos.y, arrowX });
+    };
+
+    syncRef.current = syncPositionToAnchor;
+
     useEffect(() => {
         if (!editor) return;
 
@@ -154,8 +243,10 @@ const HighlightManager: React.FC<TProps> = ({
             const pos = getPositionFromRect(rect);
             if (!pos) return;
 
+            anchorRef.current = { type: "range", range: range.cloneRange() };
             setEditingHighlightId(undefined);
-            setPosition(pos);
+            setOffscreen(false);
+            setPosition({ ...pos, arrowX: 14 });
             setPhase("button");
         };
 
@@ -182,7 +273,9 @@ const HighlightManager: React.FC<TProps> = ({
 
             const pos = getPositionFromRect(rect);
             if (pos) {
-                setPosition(pos);
+                anchorRef.current = { type: "range", range: range.cloneRange() };
+                setOffscreen(false);
+                setPosition({ ...pos, arrowX: 14 });
                 setPhase("button");
             }
         };
@@ -225,8 +318,18 @@ const HighlightManager: React.FC<TProps> = ({
                     highlightSpan.getAttribute(HIGHLIGHT_DATA_ATTR) || "";
                 const existingUid =
                     highlightSpan.getAttribute(HIGHLIGHT_UID_ATTR) || "";
-                setPosition(pos);
+                const existingTime =
+                    highlightSpan.getAttribute(HIGHLIGHT_TIME_ATTR) || "";
+                anchorRef.current = { type: "element", el: highlightSpan };
+                setOffscreen(false);
+                setPosition({ ...pos, arrowX: 14 });
                 setInputId(existingId);
+                setTimeError(false);
+                setInputTime(
+                    existingTime !== "" && !isNaN(Number(existingTime))
+                        ? formatAudioTime(Number(existingTime))
+                        : "",
+                );
                 setEditingHighlightId(existingId);
                 setEditingUid(existingUid);
                 setPhase("input");
@@ -239,13 +342,78 @@ const HighlightManager: React.FC<TProps> = ({
         editor.on("mouseup", handleMouseUp);
         editor.on("keyup", handleKeyUp);
         editor.on("click", handleClick);
+        const onNodeChange = () => syncRef.current();
+        editor.on("NodeChange", onNodeChange);
 
         return () => {
             editor.off("mouseup", handleMouseUp);
             editor.off("keyup", handleKeyUp);
             editor.off("click", handleClick);
+            editor.off("NodeChange", onNodeChange);
         };
     }, [editor]);
+
+    useEffect(() => {
+        if (!editor || phase === "hidden") return;
+
+        const doc: Document | undefined = editor.getDoc?.();
+        const win: Window | undefined = editor.getWin?.();
+        const container = containerRef.current;
+
+        let frame = 0;
+        const onViewportChange = () => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() => syncRef.current());
+        };
+
+        doc?.addEventListener("scroll", onViewportChange, true);
+        win?.addEventListener("resize", onViewportChange);
+        window.addEventListener("scroll", onViewportChange, true);
+        window.addEventListener("resize", onViewportChange);
+
+        const observer =
+            container && typeof ResizeObserver !== "undefined"
+                ? new ResizeObserver(onViewportChange)
+                : null;
+        observer?.observe(container as Element);
+
+        syncRef.current();
+
+        return () => {
+            cancelAnimationFrame(frame);
+            doc?.removeEventListener("scroll", onViewportChange, true);
+            win?.removeEventListener("resize", onViewportChange);
+            window.removeEventListener("scroll", onViewportChange, true);
+            window.removeEventListener("resize", onViewportChange);
+            observer?.disconnect();
+        };
+    }, [editor, phase]);
+
+    useEffect(() => {
+        if (!editor) return;
+
+        const doc: Document | undefined = editor.getDoc?.();
+        const head = doc?.head;
+        if (!head) return;
+
+        const STYLE_ID = "__highlight_editing_style";
+        let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
+        if (!styleEl) {
+            styleEl = doc.createElement("style");
+            styleEl.id = STYLE_ID;
+            head.appendChild(styleEl);
+        }
+
+        const target = phase === "input" ? editingUid : undefined;
+        styleEl.textContent = target
+            ? `span[${HIGHLIGHT_UID_ATTR}="${target}"]{
+                   background-color: rgba(37, 99, 235, 0.28) !important;
+                   border-bottom: 2px solid #2563eb !important;
+                   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
+                   border-radius: 2px;
+               }`
+            : "";
+    }, [editor, phase, editingUid]);
 
     // Auto-focus select when the input box appears
     useEffect(() => {
@@ -261,9 +429,35 @@ const HighlightManager: React.FC<TProps> = ({
         e.preventDefault();
         bookmarkRef.current = editor.selection.getBookmark(2, true);
         setInputId("");
+        const current = audioRef?.current?.currentTime ?? 0;
+        setInputTime(current > 0 ? formatAudioTime(current) : "");
+        setTimeError(false);
         setEditingHighlightId(undefined);
         setEditingUid(undefined);
         setPhase("input");
+    };
+
+    const captureCurrentTime = () => {
+        const audio = audioRef?.current;
+        if (!audio) return;
+        setInputTime(formatAudioTime(audio.currentTime));
+        setTimeError(false);
+    };
+
+    const previewTime = () => {
+        const audio = audioRef?.current;
+        if (!audio) return;
+        const seconds = parseAudioTime(inputTime);
+        if (seconds === null) {
+            setTimeError(true);
+            return;
+        }
+        try {
+            audio.currentTime = seconds;
+        } catch {
+            return;
+        }
+        audio.play().catch(() => {});
     };
 
     // ── Save: wrap selected text or update existing highlight ─────────
@@ -271,10 +465,19 @@ const HighlightManager: React.FC<TProps> = ({
         const bm = bookmarkRef.current;
         if (!bm) return;
 
+        const id = inputId.trim();
+
+        const rawTime = inputTime.trim();
+        const seconds = parseAudioTime(rawTime);
+        if (rawTime !== "" && seconds === null) {
+            setTimeError(true);
+            return;
+        }
+        const timeAttr =
+            seconds === null ? "" : String(Math.round(seconds * 100) / 100);
+
         editor.focus();
         editor.selection.moveToBookmark(bm);
-
-        const id = inputId.trim();
 
         if (editingUid) {
             // Target by uid to update only this specific span
@@ -286,7 +489,11 @@ const HighlightManager: React.FC<TProps> = ({
                     HIGHLIGHT_DATA_ATTR,
                     id || editingHighlightId || "",
                 );
+                if (timeAttr) span.setAttribute(HIGHLIGHT_TIME_ATTR, timeAttr);
+                else span.removeAttribute(HIGHLIGHT_TIME_ATTR);
             }
+            editor.nodeChanged();
+            editor.fire("change");
         } else {
             const range = editor.selection.getRng();
             if (!range || range.collapsed) {
@@ -308,6 +515,7 @@ const HighlightManager: React.FC<TProps> = ({
                 span.className = HIGHLIGHT_CLASS;
                 span.setAttribute(HIGHLIGHT_DATA_ATTR, highlightId);
                 span.setAttribute(HIGHLIGHT_UID_ATTR, uid);
+                if (timeAttr) span.setAttribute(HIGHLIGHT_TIME_ATTR, timeAttr);
                 const fragment = sr.extractContents();
                 span.appendChild(fragment);
                 sr.insertNode(span);
@@ -471,12 +679,23 @@ const HighlightManager: React.FC<TProps> = ({
 
         setPhase("hidden");
         setInputId("");
+        setInputTime("");
+        setTimeError(false);
         setEditingHighlightId(undefined);
         setEditingUid(undefined);
+        setOffscreen(false);
+        setConfirmAll(false);
         bookmarkRef.current = null;
+        anchorRef.current = null;
     };
 
     // ── Delete all: unwrap every highlight span (loop để xử lý nested spans) ──
+    const openConfirmAll = () => {
+        const spans = editor.dom.select(`span.${HIGHLIGHT_CLASS}`);
+        setAllCount(spans.length);
+        setConfirmAll(true);
+    };
+
     const removeAllHighlights = () => {
         // setOuterHTML thay thế node → ref cũ bị detach, cần lặp lại đến khi hết
         for (let i = 0; i < 10; i++) {
@@ -492,9 +711,14 @@ const HighlightManager: React.FC<TProps> = ({
         editor.fire("change");
         setPhase("hidden");
         setInputId("");
+        setInputTime("");
+        setTimeError(false);
         setEditingHighlightId(undefined);
         setEditingUid(undefined);
+        setOffscreen(false);
+        setConfirmAll(false);
         bookmarkRef.current = null;
+        anchorRef.current = null;
     };
 
     // ── Delete: unwrap the specific highlight span (by uid) ──────────
@@ -505,31 +729,52 @@ const HighlightManager: React.FC<TProps> = ({
         )[0];
         if (span) {
             editor.dom.setOuterHTML(span, span.innerHTML);
+            editor.nodeChanged();
+            editor.fire("change");
         }
         setPhase("hidden");
         setInputId("");
+        setInputTime("");
+        setTimeError(false);
         setEditingHighlightId(undefined);
         setEditingUid(undefined);
+        setOffscreen(false);
+        setConfirmAll(false);
         bookmarkRef.current = null;
+        anchorRef.current = null;
     };
 
     const cancel = () => {
         setPhase("hidden");
         setInputId("");
+        setInputTime("");
+        setTimeError(false);
         setEditingHighlightId(undefined);
         setEditingUid(undefined);
+        setOffscreen(false);
+        setConfirmAll(false);
         bookmarkRef.current = null;
+        anchorRef.current = null;
     };
 
     if (phase === "hidden") return null;
 
     return (
         <div
+            ref={popupRef}
             className={styles.popup}
-            style={{ left: position.x, top: position.y }}
+            style={
+                {
+                    left: position.x,
+                    top: position.y,
+                    display: offscreen ? "none" : undefined,
+                    "--arrow-x": `${position.arrowX}px`,
+                } as React.CSSProperties
+            }
         >
             {phase === "button" && (
                 <button
+                    type="button"
                     className={styles.tagButton}
                     onMouseDown={handleTagButtonMouseDown}
                 >
@@ -542,17 +787,21 @@ const HighlightManager: React.FC<TProps> = ({
                     <div className={styles.inputHeader}>
                         <p className={styles.inputLabel}>
                             {editingHighlightId
-                                ? "Chỉnh sửa ID"
-                                : "Gắn ID cho đoạn"}
+                                ? "Chỉnh sửa vị trí đáp án"
+                                : "Gắn đáp án cho đoạn"}
                         </p>
                         <button
+                            type="button"
                             className={styles.btnClose}
+                            title="Đóng"
+                            aria-label="Đóng"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={cancel}
                         >
                             ×
                         </button>
                     </div>
+
                     <Select
                         ref={selectRef}
                         className={styles.idInput}
@@ -560,7 +809,7 @@ const HighlightManager: React.FC<TProps> = ({
                         value={inputId || undefined}
                         onChange={(value) => setInputId(String(value))}
                         options={selectOptions}
-                        placeholder="Chọn câu hỏi chi tiết..."
+                        placeholder="Chọn đáp án..."
                         showSearch
                         filterOption={(input, option) =>
                             String(option?.label)
@@ -575,8 +824,66 @@ const HighlightManager: React.FC<TProps> = ({
                         }
                         notFoundContent="Không có câu hỏi"
                     />
-                    <div className={styles.btnGroup}>
+
+                    {audioRef && (
+                        <div className={styles.timeBlock}>
+                            <label className={styles.timeLabel}>
+                                Mốc audio
+                            </label>
+                            <div
+                                className={`${styles.timeGroup} ${
+                                    timeError ? styles.timeGroupError : ""
+                                }`}
+                            >
+                                <input
+                                    className={styles.timeInput}
+                                    value={inputTime}
+                                    placeholder="mm:ss"
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                        setInputTime(e.target.value);
+                                        setTimeError(false);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Escape") cancel();
+                                        if (e.key === "Enter") applyHighlight();
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    className={styles.timeIconBtn}
+                                    title="Lấy mốc đang phát của audio transcript"
+                                    aria-label="Lấy mốc hiện tại"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={captureCurrentTime}
+                                >
+                                    <ClockCircleOutlined />
+                                </button>
+                                <button
+                                    type="button"
+                                    className={styles.timeIconBtn}
+                                    title="Nghe thử từ mốc này"
+                                    aria-label="Nghe thử"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={previewTime}
+                                    disabled={!inputTime.trim()}
+                                >
+                                    <CaretRightOutlined />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {timeError && (
+                        <p className={styles.timeErrorText}>
+                            Mốc thời gian không hợp lệ. Nhập dạng mm:ss (vd
+                            01:23), để trống nếu không gắn.
+                        </p>
+                    )}
+
+                    <div className={styles.actions}>
                         <button
+                            type="button"
                             className={styles.btnSave}
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={applyHighlight}
@@ -585,24 +892,55 @@ const HighlightManager: React.FC<TProps> = ({
                             Lưu
                         </button>
                         {editingHighlightId && (
-                            <>
-                                <button
-                                    className={styles.btnDelete}
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={removeHighlight}
-                                >
-                                    Xóa
-                                </button>
-                                <button
-                                    className={styles.btnDeleteAll}
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={removeAllHighlights}
-                                >
-                                    Xóa tất cả
-                                </button>
-                            </>
+                            <button
+                                type="button"
+                                className={styles.btnIconDanger}
+                                title="Xoá vị trí đáp án này"
+                                aria-label="Xoá vị trí đáp án này"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={removeHighlight}
+                            >
+                                <DeleteOutlined />
+                            </button>
                         )}
                     </div>
+
+                    {editingHighlightId &&
+                        (confirmAll ? (
+                            <div className={styles.confirmRow}>
+                                <p className={styles.confirmText}>
+                                    Xoá hết <b>{allCount}</b> vị trí đáp án của
+                                    phần này? Không hoàn tác được bằng nút này.
+                                </p>
+                                <div className={styles.confirmBtns}>
+                                    <button
+                                        type="button"
+                                        className={styles.btnConfirmDanger}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={removeAllHighlights}
+                                    >
+                                        Xoá hết
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.btnConfirmCancel}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => setConfirmAll(false)}
+                                    >
+                                        Huỷ
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                className={styles.linkDanger}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={openConfirmAll}
+                            >
+                                Xoá toàn bộ các vị trí đáp án của phần này
+                            </button>
+                        ))}
                 </div>
             )}
         </div>

@@ -38,3 +38,43 @@
   outline-color: #4096ff; // primary
 }
 }
+
+.highlightAudioBar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.highlightAudioLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    white-space: nowrap;
+}
+
+.highlightAudioPlayer {
+    flex: 1 1 260px;
+    min-width: 240px;
+    height: 36px;
+}
+
+.highlightAudioHint {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.hintIcon {
+    display: inline-flex;
+    padding: 2px 4px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #f8fafc;
+    color: #475569;
+    vertical-align: middle;
+}
