@@ -33,6 +33,7 @@ import { CREATE_IELTS_TYPE } from "@/types/enum";
 import { useWatch } from "antd/es/form/Form";
 import MyUploadAudioHasApi from "@/bases/MyUploadAudio/MyUploadAudioHasApi";
 import TranslationSection from "./TranslationSection";
+import LinkedPartSelect from "./LinkedPartSelect";
 
 type TProps = {
     form: TMyFormProps["form"];
@@ -218,6 +219,45 @@ const PartQuestionItem = (props) => {
                                 }}
                             />
                         </MyFormItem>
+                        <MyFormItem
+                            name={[structureField.name, "linked_part_id"]}
+                        >
+                            <p className="text-base font-semibold mb-4">
+                                Đề PART liên kết
+                            </p>
+                            <LinkedPartSelect
+                                value={structure?.linked_part_id}
+                                sectionNumber={indexStructure + 1}
+                                currentId={form?.getFieldValue(
+                                    "questionnaire_id",
+                                )}
+                                fullTitle={form?.getFieldValue(
+                                    "questionnaire_title",
+                                )}
+                                usedIds={(
+                                    form?.getFieldValue(
+                                        "questionnaire_structure",
+                                    ) || []
+                                ).map((s: any) => s?.linked_part_id)}
+                                onChange={(value) => {
+                                    const questionnaireStructure =
+                                        form?.getFieldValue(
+                                            "questionnaire_structure",
+                                        );
+                                    questionnaireStructure[indexStructure] = {
+                                        ...questionnaireStructure[
+                                            indexStructure
+                                        ],
+                                        linked_part_id: value,
+                                    };
+                                    form?.setFieldValue(
+                                        "questionnaire_structure",
+                                        questionnaireStructure,
+                                    );
+                                }}
+                            />
+                        </MyFormItem>
+
                         <MyFormItem name={[structureField.name, "transcript"]}>
                             <p className="text-base font-semibold mb-4">
                                 Transcript
