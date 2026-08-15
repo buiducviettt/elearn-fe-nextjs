@@ -59,7 +59,7 @@ const HighlightManager: React.FC<TProps> = ({
     audioRef,
 }) => {
     const [phase, setPhase] = useState<TPhase>("hidden");
-    const [position, setPosition] = useState({ x: 0, y: 0, arrowX: 14 });
+    const [position, setPosition] = useState({ x: 0, y: 0, arrowX: 14, flipped: false });
     const [inputId, setInputId] = useState("");
     const [inputTime, setInputTime] = useState("");
     const [timeError, setTimeError] = useState(false);
@@ -170,6 +170,9 @@ const HighlightManager: React.FC<TProps> = ({
         };
     };
 
+    const isUsableRect = (rect?: DOMRect | null) =>
+        !!rect && rect.height > 0 && (rect.top !== 0 || rect.bottom !== 0);
+
     const getAnchorRect = (): DOMRect | null => {
         const anchor = anchorRef.current;
         if (!anchor) return null;
@@ -180,12 +183,12 @@ const HighlightManager: React.FC<TProps> = ({
         }
 
         let rect: DOMRect = anchor.range.getBoundingClientRect();
-        if (!rect || (rect.width === 0 && rect.height === 0)) {
+        if (!rect || rect.width === 0 || rect.height === 0) {
             const rects = anchor.range.getClientRects();
-            if (rects.length === 0) return null;
+            if (rects.length === 0) return isUsableRect(rect) ? rect : null;
             rect = rects[rects.length - 1] as DOMRect;
         }
-        return rect;
+        return isUsableRect(rect) ? rect : null;
     };
 
     const syncRef = useRef<() => void>(() => {});
@@ -198,8 +201,10 @@ const HighlightManager: React.FC<TProps> = ({
         if (!iframeEl) return;
 
         const iframeRect = iframeEl.getBoundingClientRect();
+        const MARGIN = 24;
         const visible =
-            rect.bottom > iframeRect.top && rect.top < iframeRect.bottom;
+            rect.bottom > iframeRect.top - MARGIN &&
+            rect.top < iframeRect.bottom + MARGIN;
         setOffscreen(!visible);
 
         const pos = getPositionFromRect(rect);
@@ -214,7 +219,18 @@ const HighlightManager: React.FC<TProps> = ({
             Math.max(8, barWidth - 16),
         );
 
-        setPosition({ x, y: pos.y, arrowX });
+        const popupHeight = popupRef.current?.offsetHeight ?? 0;
+        const containerTop = container?.getBoundingClientRect().top ?? 0;
+        const flipped =
+            popupHeight > 0 &&
+            rect.bottom + 6 + popupHeight > iframeRect.bottom &&
+            rect.top - 6 - popupHeight > iframeRect.top;
+
+        const y = flipped
+            ? rect.top - containerTop - popupHeight - 6
+            : pos.y;
+
+        setPosition({ x, y, arrowX, flipped });
     };
 
     syncRef.current = syncPositionToAnchor;
@@ -246,7 +262,7 @@ const HighlightManager: React.FC<TProps> = ({
             anchorRef.current = { type: "range", range: range.cloneRange() };
             setEditingHighlightId(undefined);
             setOffscreen(false);
-            setPosition({ ...pos, arrowX: 14 });
+            setPosition({ ...pos, arrowX: 14, flipped: false });
             setPhase("button");
         };
 
@@ -275,7 +291,7 @@ const HighlightManager: React.FC<TProps> = ({
             if (pos) {
                 anchorRef.current = { type: "range", range: range.cloneRange() };
                 setOffscreen(false);
-                setPosition({ ...pos, arrowX: 14 });
+                setPosition({ ...pos, arrowX: 14, flipped: false });
                 setPhase("button");
             }
         };
@@ -322,7 +338,7 @@ const HighlightManager: React.FC<TProps> = ({
                     highlightSpan.getAttribute(HIGHLIGHT_TIME_ATTR) || "";
                 anchorRef.current = { type: "element", el: highlightSpan };
                 setOffscreen(false);
-                setPosition({ ...pos, arrowX: 14 });
+                setPosition({ ...pos, arrowX: 14, flipped: false });
                 setInputId(existingId);
                 setTimeError(false);
                 setInputTime(
@@ -762,7 +778,9 @@ const HighlightManager: React.FC<TProps> = ({
     return (
         <div
             ref={popupRef}
-            className={styles.popup}
+            className={`${styles.popup} ${
+                position.flipped ? styles.popupFlipped : ""
+            }`}
             style={
                 {
                     left: position.x,

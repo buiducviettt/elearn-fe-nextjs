@@ -349,3 +349,26 @@
         color: #dc2626;
     }
 }
+
+.popupFlipped {
+    .inputBox,
+    .tagButton {
+        &::before {
+            top: auto;
+            bottom: -7px;
+            border-width: 7px 6px 0 6px;
+            border-color: #e2e8f0 transparent transparent transparent;
+        }
+
+        &::after {
+            top: auto;
+            bottom: -6px;
+            border-width: 6px 5px 0 5px;
+            border-color: #fff transparent transparent transparent;
+        }
+    }
+
+    .tagButton::before {
+        border-color: #2563eb transparent transparent transparent;
+    }
+}
